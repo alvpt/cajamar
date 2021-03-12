@@ -382,3 +382,54 @@ df = df.drop(['categoria_dos'], axis = 1)
 df = pd.merge(df, dummies_categoria_dos, left_index=True, right_index=True)
 
 
+###########################################################
+# Campo 'stock'
+###########################################################
+
+
+# Ids únicos a analizar
+ids = df['id'].unique()
+
+# Se crea el campo 'stock' con todos los valores como 0
+df['stock'] = 0
+
+# for id_unico in tqdm(ids):
+for id_unico in tqdm(ids):
+    
+    # Creacion de un dataframe que solo incluye un id
+    # Además, se ordenan las filas en funcion de la fecha
+    df_temp = df[df['id'].isin([id_unico])].sort_values(by='fecha', ascending=False)
+
+    # Se crea un dataframe que incluye las filas donde el stock es 0
+    df_stock_0 = df_temp[df_temp['estado'].isin(['Transito'])]
+
+    fechas_stock_0 = df_stock_0['fecha'].tolist()
+
+    if(len(fechas_stock_0) > 0):
+
+        fecha_arriba = fechas_stock_0[0]
+        
+        for fecha_abajo in fechas_stock_0:
+
+            if fecha_abajo != fecha_arriba:
+
+                df_aux = df_temp[(df_temp['fecha'] > fecha_abajo) & (df_temp['fecha'] < fecha_arriba)]
+
+                if ((df_aux.shape[0] > 1)):
+                    if (df_aux.iloc[1]['estado'] != 'Transito'):
+
+                        aux_indice = df_aux.index.tolist()
+
+                        ies = range(len(aux_indice)-1)
+                        
+                        for i in ies:
+                            
+                            df.loc[aux_indice[i+1], 'stock'] = df.loc[aux_indice[i], 'stock'] + \
+                            df.loc[aux_indice[i+1], 'unidades_vendidas']
+
+                fecha_arriba = fecha_abajo
+                    
+
+
+    
+    
