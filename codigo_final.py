@@ -390,6 +390,10 @@ df = pd.merge(df, dummies_categoria_dos, left_index=True, right_index=True)
 # Ids únicos a analizar
 ids = df['id'].unique()
 
+di = {'Rotura': 'Transito'}
+
+df = df.replace({"estado": di})
+
 # Se crea el campo 'stock' con todos los valores como 0
 df['stock'] = 0
 
@@ -397,35 +401,39 @@ df['stock'] = 0
 for id_unico in tqdm(ids):
     
     # Creacion de un dataframe que solo incluye un id
-    # Además, se ordenan las filas en funcion de la fecha
+    # Además, se ordenan las filas en funcion de la fecha: primero las más nuevas,
+    # y más tarde las más antiguas
     df_temp = df[df['id'].isin([id_unico])].sort_values(by='fecha', ascending=False)
 
     # Se crea un dataframe que incluye las filas donde el stock es 0
     df_stock_0 = df_temp[df_temp['estado'].isin(['Transito'])]
 
+    # Se definen las fechas cuyo stock es 0
     fechas_stock_0 = df_stock_0['fecha'].tolist()
 
+    # Es posible que la longitud de ese dataset sea 0. El siguiente bloque solo se
+    # debe ejecutar si el dataframe tiene más de 0 filas
     if(len(fechas_stock_0) > 0):
 
+        # Se define la fecha limite superior
         fecha_arriba = fechas_stock_0[0]
-        
-        for fecha_abajo in fechas_stock_0:
 
-            if fecha_abajo != fecha_arriba:
+        # Se redefine la lista que incluye las fechas sobre las que se va a iterar
+        fechas_stock_0 = fechas_stock_0[1:]
+        
+
+        for fecha_abajo in fechas_stock_0:
 
                 df_aux = df_temp[(df_temp['fecha'] > fecha_abajo) & (df_temp['fecha'] < fecha_arriba)]
 
                 if ((df_aux.shape[0] > 1)):
+
                     if (df_aux.iloc[1]['estado'] != 'Transito'):
 
-                        aux_indice = df_aux.index.tolist()
-
-                        ies = range(len(aux_indice)-1)
-                        
-                        for i in ies:
-                            
-                            df.loc[aux_indice[i+1], 'stock'] = df.loc[aux_indice[i], 'stock'] + \
-                            df.loc[aux_indice[i+1], 'unidades_vendidas']
+                        df_aux = df_aux.groupby('estado').cumsum()
+                        aux_stock = df_aux['unidades_vendidas']
+                        aux_indice = df_aux.index
+                        df.loc[aux_indice, 'stock'] = aux_stock 
 
                 fecha_arriba = fecha_abajo
                     
