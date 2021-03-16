@@ -66,6 +66,7 @@ Pasos para la ejecución del programa:
     2.8. Creación del campo 'stock/unidades_vendidas'
     2.9. Variables dummy para el campo 'categoria_uno'.
     2.10. Variables dummy para el campo 'categoria_dos'.
+    2.11. Eliminacion de campos no numericos.
 
 3. Tratamiento del dataset de estimacion.
     3.1. Lectura de los datos de estimacion.
@@ -78,6 +79,7 @@ Pasos para la ejecución del programa:
     3.8. Creación del campo 'stock/unidades_vendidas'
     3.9. Variables dummy para el campo 'categoria_uno'.
     3.10. Variables dummy para el campo 'categoria_dos'.
+    3.11. Eliminacion de campos no numericos.
 
 4. Algoritmo de prediccion de las unidades vendidas.
     4.1. Definicion del algoritmo.
@@ -300,7 +302,6 @@ def campo_antiguedad(df):
 
     categorias = df['categoria_uno'].unique()
     fechas = df['fecha'].unique()
-    columna_fecha = df.columns.get_loc('antiguedad')
 
     for letra in tqdm(categorias):
         
@@ -309,7 +310,7 @@ def campo_antiguedad(df):
             df_temp = df.loc[df['categoria_uno'].isin([letra]) & df['fecha'].isin([fecha])]                                                          
             antiguedad_media = df_temp['antiguedad'].mean()
             df_temp_nan_index = df_temp[df_temp['antiguedad'].isin([np.nan])].index
-            df.loc[df_temp_nan_index, columna_fecha] = antiguedad_media
+            df.loc[df_temp_nan_index, 'antiguedad'] = antiguedad_media
     
     return df
 
@@ -453,3 +454,11 @@ df = df.drop(['categoria_dos'], axis = 1)
 
 # Union del dataframe con variables dummies al dataframe 'df'
 df = pd.merge(df, dummies_categoria_dos, left_index=True, right_index=True)
+
+###########################################################
+# Eliminacion de campos no numericos
+###########################################################
+
+df = df.select_dtypes(exclude=['object'])
+
+df = df.drop(['Unnamed: 0', 'id', 'code', 'idcode'])
