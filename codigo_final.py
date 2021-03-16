@@ -461,4 +461,4 @@ df = pd.merge(df, dummies_categoria_dos, left_index=True, right_index=True)
 
 df = df.select_dtypes(exclude=['object'])
 
-df = df.drop(['Unnamed: 0', 'id', 'code', 'idcode'])
+df = df.drop(['Unnamed: 0', 'id', 'code', 'idcode'], axis=1)
