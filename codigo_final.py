@@ -232,60 +232,6 @@ df = df.drop(['precio'], axis = 1)
 # Se cambia el nombre del campo 'completado' por 'precio'
 df = df.rename(columns={'completado': 'precio'})
 
-
-###########################################################
-# Creacion del campo 'variacion' 
-###########################################################
-
-df_variacion = df[["id","fecha","precio","fechaid"]].sort_values(["id", "fecha"])
-
-id_unique = df_variacion["id"].unique()
-
-list_final_var = []
-list_final_porc = []
-
-print("Avance en la creacion del campo 'variacion'")
-
-for x in tqdm(id_unique):
-    
-    # Creacion de un dataframe que incluye solo las filas con un id determinado
-    df_corte_id = df_variacion[df_variacion["id"].isin([x])]
-
-    # Extraccion del campo 'precio' de ese dataframe
-    column_precio_id = df_corte_id["precio"]
-
-    # Calculo de la variacion entre filas
-    variacion =  column_precio_id.diff()
-
-    # A la primera fila se le asocia la variacion 0
-    variacion.fillna(0)
-
-    # Se halla el porcentaje de variacion
-    porc = (variacion/column_precio_id)*100
-
-    # Se convierte la serie 'variacion' en una lista
-    list_variacion = variacion.tolist()
-
-    # Se convierte la serie 'porc' en una lista
-    list_porc = porc.tolist()
-
-    list_final_var = list_final_var + list_variacion
-    list_final_porc = list_final_porc + list_porc
-
-# Crear df_variacion para posterior merge
-column_fechaid = df_variacion["fechaid"].tolist()
-column_precio = df_variacion["precio"].tolist()
-
-
-df_variacion = pd.DataFrame({'variacion' : list_final_var,
-                             '%_var' : list_final_porc,
-                             'precio' : column_precio,
-                             'fechaid': column_fechaid})    
-
-df = df.merge(df_variacion[["fechaid","variacion","%_var"]], how="left", on="fechaid")
-
-
-
 ###########################################################
 # Imputacion del campo 'antiguedad' 
 ###########################################################
@@ -304,140 +250,53 @@ for letra in tqdm(categorias):
         antiguedad_media = df_temp['antiguedad'].mean()
         df_temp_nan_index = df_temp[df_temp['antiguedad'].isin([np.nan])].index
         df.loc[df_temp_nan_index, columna_fecha] = antiguedad_media
-                
-###########################################################
-# Creacion del campo 'score'
-###########################################################
-
-print("Creacion del campo 'score'")
-
-# Creacion de un nuevo campo, 'mes'
-df['mes'] = df['fecha'].str[5:7]
-
-# Creacion de un dataframe auxiliar en el que se ordenan los meses de menos a mas
-# importantes para cada uno de los valores del campo 'categoria_uno'
-importancia_mes = pd.DataFrame(df.groupby(['categoria_uno', 'mes']).sum()['unidades_vendidas'])
-
-# Ordenacion del dataframe en base al criterio antes expuesto
-importancia_mes = importancia_mes.sort_values(by=['categoria_uno', 'unidades_vendidas'], ascending=[False, False])
-
-# Creacion de una lista de listas a partir del indice del dataframe
-importancia_mes_index = importancia_mes.index.tolist()
-
-# Se añade un nuevo campo al dataframe. Este campo indicara la puntuacion de cada mes, para
-# cada categoria. Su valor inicial es 0 en todas las filas
-df['score'] = 0
-
-# Inicializacion de la variable que indicara la puntuacion de cada mes
-score = 0
-
-# Se itera sobre la lista antes creada. Ademas, la funcion 'tqdm' permite visualizar
-# en la linea de comandos el avance del proceso
-for letra, mes in tqdm(importancia_mes_index):
-    
-    # A medida que se recorren las categorias ya ordenadas de menos a mas importantes, es necesario
-    # aumentar la puntuacion
-    score += 1
-    
-    # Posicion en el dataframe de las filas que tienen esta 'categoria_uno' y este 'mes'
-    df_indices = df.loc[df['categoria_uno'].isin([letra]) & df['mes'].isin([mes])].index
-    
-    # Asignacion del valor de puntuacion
-    df.loc[df_indices, 'score'] = score
-    
-    # Una vez se llega a la puntuacion maxima, se pasara a otra letra, por lo que es necesario 
-    # reiniciar la puntuacion
-    if score == 12:
-        score = 0
-
-# Eliminacion del campo 'categoria_uno'
-df = df.drop(['mes'], axis = 1)
-        
-###########################################################
-# Variables dummy del campo 'categoria_uno'
-###########################################################
-
-# Creacion de un dataframe con las variables dummies extraidas para cada valor 
-# del campo 'categoria_uno'
-dummies_categoria_uno = pd.get_dummies(df['categoria_uno'], prefix='categoria_uno')
-
-# Eliminacion del campo 'categoria_uno'
-df = df.drop(['categoria_uno'], axis = 1)
-
-# Union del dataframe con variables dummies al dataframe 'df'
-df = pd.merge(df, dummies_categoria_uno, left_index=True, right_index=True)
 
 ###########################################################
-# Variables dummy del campo 'categoria_dos'
+# Creacion del campo 'variacion' 
 ###########################################################
 
-# Creacion de un dataframe con las variables dummies extraidas para cada valor 
-# del campo 'categoria_dos'
-dummies_categoria_dos = pd.get_dummies(df['categoria_dos'], prefix='categoria_dos',dummy_na=True)
+def get_stock(df):
 
-# Eliminacion del campo 'categoria_dos'
-df = df.drop(['categoria_dos'], axis = 1)
+    #Creamos un diccionario donde almacenamos el id como clave y el número de veces que aparece como valor
+    dict_id_len = df[['fecha', 'id']].groupby('id').count().to_dict()['fecha']
 
-# Union del dataframe con variables dummies al dataframe 'df'
-df = pd.merge(df, dummies_categoria_dos, left_index=True, right_index=True)
+    #Creamos df1 donde filtramos por los siguientes campos
+    df1 = df[['id', 'fecha', 'fechaid', 'estado']].sort_values(['id', 'fecha'])
 
+    #Codificamos la variable estado para separar los casos donde hay stock(no rotura) de los que no hay (rotura, transito)
+    df1['estado'] = [1 if x == 'No Rotura' else 0 for x in df1['estado']]
 
-###########################################################
-# Campo 'stock'
-###########################################################
+    #Pasamos los valores y las claves de dict_id_len para poder crear listas
+    keys = list(dict_id_len.keys())
+    values = list(dict_id_len.values())
 
+    #En el siguiente bucle creamos una variable que será code que cambiará al comparar los estados o se mantendrá 
+    #igual para cada id, para ello guardamos los valores en una columna
+    col2 = []
+    for x in range(len(keys)):
 
-# Ids únicos a analizar
-ids = df['id'].unique()
+        df_2 = df1[df1['id'] == keys[x]].reset_index()
+        cont = 0
+        col2.append([df_2['fechaid'].iloc[0], cont])
 
-di = {'Rotura': 'Transito'}
+        for y in range(1, int(values[x])):
 
-df = df.replace({"estado": di})
+            if df_2['estado'].iloc[y] != df_2['estado'].iloc[y-1]:
+                cont = cont +1
+                col2.append([df_2['fechaid'].iloc[y], cont])
 
-# Se crea el campo 'stock' con todos los valores como 0
-df['stock'] = 0
+            else:
 
-# for id_unico in tqdm(ids):
-for id_unico in tqdm(ids):
-    
-    # Creacion de un dataframe que solo incluye un id
-    # Además, se ordenan las filas en funcion de la fecha: primero las más nuevas,
-    # y más tarde las más antiguas
-    df_temp = df[df['id'].isin([id_unico])].sort_values(by='fecha', ascending=False)
+                col2.append([df_2['fechaid'].iloc[y], cont])
 
-    # Se crea un dataframe que incluye las filas donde el stock es 0
-    df_stock_0 = df_temp[df_temp['estado'].isin(['Transito'])]
+    #Después transformamos col2 en un dataframe y lo unimos al dataframe original
+    df_stock = pd.DataFrame(col2, columns = ['fechaid', 'code'])        
+    df_stock['code'] = df_stock['code'].astype('int').astype('str')
+    df = df.merge(df_stock, how = 'inner', on = 'fechaid')
 
-    # Se definen las fechas cuyo stock es 0
-    fechas_stock_0 = df_stock_0['fecha'].tolist()
+    #Finalmente, creamos un nuevo campo en df donde unimos el campo id y el campo code que acabamos de crear
+    df['idcode'] = df['id'] + df['code']
 
-    # Es posible que la longitud de ese dataset sea 0. El siguiente bloque solo se
-    # debe ejecutar si el dataframe tiene más de 0 filas
-    if(len(fechas_stock_0) > 0):
+    return df
 
-        # Se define la fecha limite superior
-        fecha_arriba = fechas_stock_0[0]
-
-        # Se redefine la lista que incluye las fechas sobre las que se va a iterar
-        fechas_stock_0 = fechas_stock_0[1:]
-        
-
-        for fecha_abajo in fechas_stock_0:
-
-                df_aux = df_temp[(df_temp['fecha'] > fecha_abajo) & (df_temp['fecha'] < fecha_arriba)]
-
-                if ((df_aux.shape[0] > 1)):
-
-                    if (df_aux.iloc[1]['estado'] != 'Transito'):
-
-                        df_aux = df_aux.groupby('estado').cumsum()
-                        aux_stock = df_aux['unidades_vendidas']
-                        aux_indice = df_aux.index
-                        df.loc[aux_indice, 'stock'] = aux_stock 
-
-                fecha_arriba = fecha_abajo
-                    
-
-
-    
-    
+df['stock'] = get_stock(df)
