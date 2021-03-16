@@ -27,65 +27,49 @@
 ###########################################################
 
 print('''
-
 ###########################################################
-
 DATATHON CAJAMAR UNIVERSITYHACK 2021
-
 RETO: ATMIRA STOCK PREDICTION
-
 Este archivo contiene el codigo desarrollado para la competicion
 de analisis de datos organizada por el banco Cajamar en colaboración
 con la empresa PcComponentes.
-
 Autores:
     - Roberto Flores.
     - Miguel Chacón.
     - Álvaro Pérez Trasancos
-
 Representación: Universidad de Navarra - Sede de Postgrado.
 Máster en Big Data Science.
 Fecha: 17/03/2021.
 Lugar: Madrid, España.
-
-
 ##########################################################
-
 Pasos para la ejecución del programa:
-
 1. Importacion de los modulos a emplear.
-
 2. Tratamiento del dataset de modelado.
     2.1. Lectura de los datos de modelado.
     2.2. Preprocesamiento de los campos.
     2.3. Imputacion del campo 'precio'.
-    2.4. Creación del campo 'variacion'
-    2.5. Imputacion del campo 'antiguedad'
-    2.6. Creación del campo 'score'.
-    2.7. Creación del campo 'stock'
-    2.8. Creación del campo 'stock/unidades_vendidas'
-    2.9. Variables dummy para el campo 'categoria_uno'.
-    2.10. Variables dummy para el campo 'categoria_dos'.
-    2.11. Eliminacion de campos no numericos.
-
+    2.4. Imputacion del campo 'antiguedad'
+    2.5. Creación del campo 'score'.
+    2.6. Creación del campo 'stock'
+    2.7. Creación del campo 'stock/unidades_vendidas'
+    2.8. Variables dummy para el campo 'categoria_uno'.
+    2.9. Variables dummy para el campo 'categoria_dos'.
+    2.10. Eliminacion de campos no numericos.
 3. Tratamiento del dataset de estimacion.
     3.1. Lectura de los datos de estimacion.
     3.2. Preprocesamiento de los campos.
     3.3. Imputacion del campo 'precio'.
-    3.4. Creación del campo 'variacion'
-    3.5. Imputacion del campo 'antiguedad'
-    3.6. Creación del campo 'score'.
-    3.7. Creación del campo 'stock'
-    3.8. Creación del campo 'stock/unidades_vendidas'
-    3.9. Variables dummy para el campo 'categoria_uno'.
-    3.10. Variables dummy para el campo 'categoria_dos'.
-    3.11. Eliminacion de campos no numericos.
-
+    3.4. Imputacion del campo 'antiguedad'
+    3.5. Creación del campo 'score'.
+    3.6. Creación del campo 'stock'
+    3.7. Creación del campo 'stock/unidades_vendidas'
+    3.8. Variables dummy para el campo 'categoria_uno'.
+    3.9. Variables dummy para el campo 'categoria_dos'.
+    3.10. Eliminacion de campos no numericos.
 4. Algoritmo de prediccion de las unidades vendidas.
     4.1. Definicion del algoritmo.
     4.2. Carga de los datasets de entrenamiento y de test.
     4.3. Exposicion de los resultados
-
 ##########################################################
 ''')
 
@@ -233,62 +217,6 @@ df = df.drop(['precio'], axis = 1)
 
 # Se cambia el nombre del campo 'completado' por 'precio'
 df = df.rename(columns={'completado': 'precio'})
-
-
-###########################################################
-# Creacion del campo 'variacion'
-###########################################################
-
-print("\n  2.4. Creacion del campo 'variacion'")
-
-df_variacion = df[["id","fecha","precio","fechaid"]].sort_values(["id", "fecha"])
-
-id_unique = df_variacion["id"].unique()
-
-list_final_var = []
-list_final_porc = []
-
-print("Avance en la creacion del campo 'variacion'")
-
-# SE PUEDE MEJORAR
-
-for x in tqdm(id_unique):
-
-    # Creacion de un dataframe que incluye solo las filas con un id determinado
-    df_corte_id = df_variacion[df_variacion["id"].isin([x])]
-
-    # Extraccion del campo 'precio' de ese dataframe
-    column_precio_id = df_corte_id["precio"]
-
-    # Calculo de la variacion entre filas
-    variacion =  column_precio_id.diff()
-
-    # A la primera fila se le asocia la variacion 0
-    variacion.fillna(0)
-
-    # Se halla el porcentaje de variacion
-    porc = (variacion/column_precio_id)*100
-
-    # Se convierte la serie 'variacion' en una lista
-    list_variacion = variacion.tolist()
-
-    # Se convierte la serie 'porc' en una lista
-    list_porc = porc.tolist()
-
-    list_final_var = list_final_var + list_variacion
-    list_final_porc = list_final_porc + list_porc
-
-# Crear df_variacion para posterior merge
-column_fechaid = df_variacion["fechaid"].tolist()
-column_precio = df_variacion["precio"].tolist()
-
-
-df_variacion = pd.DataFrame({'variacion' : list_final_var,
-                             '%_var' : list_final_porc,
-                             'precio' : column_precio,
-                             'fechaid': column_fechaid})    
-
-df = df.merge(df_variacion[["fechaid","variacion","%_var"]], how="left", on="fechaid")
 
 
 
@@ -462,3 +390,4 @@ df = pd.merge(df, dummies_categoria_dos, left_index=True, right_index=True)
 df = df.select_dtypes(exclude=['object'])
 
 df = df.drop(['Unnamed: 0', 'id', 'code', 'idcode'], axis=1)
+
